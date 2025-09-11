@@ -1,7 +1,8 @@
+# Bootstrap.ps1
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
 # Folders on D:
-$vmRoot = 'D:\VM-Drives'
+$vmRoot      = 'D:\VM-Drives'
 $vagrantHome = 'D:\vagrant'
 New-Item -ItemType Directory -Force $vmRoot | Out-Null
 New-Item -ItemType Directory -Force $vagrantHome | Out-Null
@@ -29,5 +30,21 @@ $VBox = "$Env:ProgramFiles\Oracle\VirtualBox\VBoxManage.exe"
 if (Test-Path $VBox) { & $VBox setproperty machinefolder "$vmRoot" | Out-Null }
 setx VAGRANT_HOME "$vagrantHome" | Out-Null
 $Env:VAGRANT_HOME = $vagrantHome
+
+# ---- Create/ensure VirtualBox NAT Network ----
+$netName = 'NatNetwork'
+$cidr    = '172.31.254.0/24'
+if (Test-Path $VBox) {
+  $natList = & $VBox list natnetworks | Out-String
+  if ($natList -notmatch "Name:\s+$netName") {
+    & $VBox natnetwork add --netname $netName --network $cidr --dhcp on
+  } else {
+    & $VBox natnetwork modify --netname $netName --network $cidr --dhcp on
+  }
+  try { & $VBox natnetwork start --netname $netName } catch {}
+  Write-Output "INFO: NAT Network '$netName' ready on $cidr (DHCP on)."
+} else {
+  Write-Warning "VBoxManage not found. Ensure VirtualBox is installed and re-run this section."
+}
 
 Write-Output 'BOOTSTRAP DONE.'
